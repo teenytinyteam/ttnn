@@ -17,20 +17,12 @@ class DataLoader:
                        [70],
                        [155]]
 
-    def size(self):
+    def __len__(self):  # 3
         return len(self.features)
 
-    def feature(self, index):
-        return Tensor(self.features[index: index + self.batch_size])
-
-    def label(self, index):
-        return Tensor(self.labels[index: index + self.batch_size])
-
-    def feature_size(self):
-        return self.feature(0).size()
-
-    def label_size(self):
-        return self.label(0).size()
+    def __getitem__(self, index):  # 4
+        return (Tensor(self.features[index: index + self.batch_size]),
+                Tensor(self.labels[index: index + self.batch_size]))
 
 
 class Tensor:
@@ -109,13 +101,13 @@ BATCHES = 2
 
 dataset = DataLoader(BATCHES)
 
-model = Linear(dataset.feature_size(), dataset.label_size())
+feature, label = dataset[0]
+model = Linear(feature.size(), label.size())
 loss = MSELoss()
 sgd = SGD(model.parameters(), LEARNING_RATE)
 
-for i in range(0, dataset.size(), dataset.batch_size):
-    feature = dataset.feature(i)
-    label = dataset.label(i)
+for i in range(0, len(dataset), dataset.batch_size):
+    feature, label = dataset[i]
 
     prediction = model(feature)
     error = loss(prediction, label)

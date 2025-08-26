@@ -6,9 +6,6 @@ class DataLoader:
     def __init__(self):
         self.feature = Tensor([28.1, 58.0])
 
-    def feature_size(self):
-        return self.feature.size()
-
 
 class Tensor:
 
@@ -37,7 +34,7 @@ class Linear:
 
 dataset = DataLoader()
 
-model = Linear(dataset.feature_size(), 1)
+model = Linear(dataset.feature.size(), 1)
 
 prediction = model(dataset.feature)
 

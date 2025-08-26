@@ -10,16 +10,26 @@ class DataLoader:
     def __init__(self, batch_size):
         self.batch_size = batch_size
 
-        self.features = [[28.1, 58.0],
-                         [22.5, 72.0],
-                         [31.4, 45.0],
-                         [19.8, 85.0],
-                         [27.6, 63]]
-        self.labels = [[165],
-                       [95],
-                       [210],
-                       [70],
-                       [155]]
+        with (np.load('mini-mnist.npz', allow_pickle=True) as f):
+            self.x_train, self.y_train = self.normalize(f['x_train'], f['y_train'])
+            self.x_test, self.y_test = self.normalize(f['x_test'], f['y_test'])
+
+        self.train()
+
+    @staticmethod
+    def normalize(x, y):
+        inputs = x / 255
+        targets = np.zeros((len(y), 10))
+        targets[range(len(y)), y] = 1
+        return inputs, targets
+
+    def train(self):
+        self.features = self.x_train
+        self.labels = self.y_train
+
+    def eval(self):
+        self.features = self.x_test
+        self.labels = self.y_test
 
     def __len__(self):  # 3
         return len(self.features)
@@ -33,7 +43,6 @@ class Tensor:
 
     def __init__(self, data):
         self.data = np.array(data)
-
         self.grad = None
         self.gradient_fn = lambda: None
         self.parents = set()
@@ -45,8 +54,11 @@ class Tensor:
         for p in self.parents:
             p.gradient()
 
+    def shape(self):
+        return self.data.shape
+
     def size(self):
-        return self.data.shape[-1]
+        return np.prod(self.data.shape[1:])
 
 
 class Layer(ABC):
@@ -101,6 +113,32 @@ class Linear(Layer):
         return [self.weight, self.bias]
 
 
+class Flatten(Layer):
+
+    def forward(self, x: Tensor):
+        p = Tensor(np.array(x.data.reshape(x.data.shape[0], -1)))
+
+        def gradient_fn():
+            x.grad = p.grad.reshape(x.data.shape)
+
+        p.gradient_fn = gradient_fn
+        p.parents = {x}
+        return p
+
+
+class ReLU(Layer):
+
+    def forward(self, x: Tensor):
+        p = Tensor(np.maximum(0, x.data))
+
+        def gradient_fn():
+            x.grad = (p.data > 0) * p.grad
+
+        p.gradient_fn = gradient_fn
+        p.parents = {x}
+        return p
+
+
 class MSELoss:
 
     def __call__(self, p: Tensor, y: Tensor):
@@ -125,15 +163,16 @@ class SGD:
             p.data -= p.grad * self.lr
 
 
-LEARNING_RATE = 0.00001
+LEARNING_RATE = 0.01
 BATCHES = 2
-EPOCHS = 100
+EPOCHS = 10
 
 dataset = DataLoader(BATCHES)
 
 feature, label = dataset[0]
-model = Sequential([Linear(feature.size(), 4),
-                    Linear(4, label.size())])
+model = Sequential([Flatten(),
+                    Linear(feature.size(), 64),
+                    Linear(64, label.size())])
 loss = MSELoss()
 sgd = SGD(model.parameters(), LEARNING_RATE)
 
@@ -152,7 +191,8 @@ for epoch in range(EPOCHS):
         error.gradient()
         sgd.backward()
 
-        print(f"hidden weight: {model.layers[0].weight.data}")
-        print(f"hidden bias: {model.layers[0].bias.data}")
-        print(f"output weight: {model.layers[1].weight.data}")
-        print(f"output bias: {model.layers[1].bias.data}")
+dataset.eval()
+
+prediction = model(Tensor(dataset.features))
+result = (prediction.data.argmax(axis=1) == dataset.labels.argmax(axis=1)).sum()
+print(f'Result: {result} of {len(dataset.features)}')
