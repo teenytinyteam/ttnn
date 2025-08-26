@@ -1,7 +1,6 @@
 import csv
 import re
 from abc import ABC, abstractmethod
-from collections import Counter
 
 import numpy as np
 
@@ -26,8 +25,7 @@ class DataLoader:
         for r in self.reviews:
             split_reviews.append(self.clean_text(r.lower()).split())
 
-        counter = Counter([w for r in split_reviews for w in r])
-        self.vocabulary = set([w for w, c in counter.items()])
+        self.vocabulary = set(w for r in split_reviews for w in r)
         self.word2index = {w: idx for idx, w in enumerate(self.vocabulary)}
         self.index2word = {idx: w for idx, w in enumerate(self.vocabulary)}
         self.tokens = [[self.word2index[w] for w in r if w in self.word2index] for r in split_reviews]
