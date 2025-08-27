@@ -36,6 +36,13 @@ class DataLoader:
         txt = re.sub(r'[^a-zA-Z0-9\s]', '', txt)
         return txt
 
+    def encode(self, text):
+        words = self.clean_text(text.lower()).split()
+        return [self.word2index[word] for word in words]
+
+    def decode(self, tokens):
+        return " ".join([self.index2word[index] for index in tokens])
+
     def train(self):
         self.features = [list(set(idx)) for idx in self.tokens[:-10]]
         self.labels = [0 if idx == "negative" else 1 for idx in self.sentiments[:-10]]
